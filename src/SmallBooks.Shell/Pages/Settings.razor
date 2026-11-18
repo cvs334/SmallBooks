@@ -1,0 +1,269 @@
+@page "/settings"
+@page "/settings/{Tab}"
+@inject CompanySession Session
+@inject ModuleHost Modules
+@inject UiCatalog Ui
+@inject BackupService Backups
+@inject AppSettingsStore AppSettings
+@inject IPlatformServices Platform
+
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">Settings</h2>
+        <p class="sub">@Session.CompanyName · <span class="mono">@Session.FilePath</span></p>
+    </div>
+</div>
+
+<nav class="tabs" aria-label="Settings sections">
+    <a href="settings" class="@(Current == "company" ? "on" : "")">Company</a>
+    <a href="settings/modules" class="@(Current == "modules" ? "on" : "")">Modules</a>
+    <a href="settings/backups" class="@(Current == "backups" ? "on" : "")">Backups</a>
+    @foreach (var mp in ModulePages)
+    {
+        <a href="settings/@Slug(mp.Title)" class="@(Current == Slug(mp.Title) ? "on" : "")">@mp.Title</a>
+    }
+</nav>
+
+@if (_message is not null)
+{
+    <Notice Kind="good">@_message</Notice>
+}
+<ProblemList Problems="_problems" />
+
+@switch (Current)
+{
+    case "company":
+        <section class="card">
+            <div class="bd form">
+                <label class="f">Company name <input @bind="_companyName" maxlength="200" /></label>
+                <label class="f">
+                    Fiscal year starts in
+                    <select @bind="_fiscalMonth">
+                        @for (var m = 1; m <= 12; m++)
+                        {
+                            <option value="@m">@Formats.Month(m)</option>
+                        }
+                    </select>
+                </label>
+                <label class="f">
+                    Close the books through <span class="hint">Nothing can be posted, reversed or changed on or before this date. Leave blank to keep every period open.</span>
+                    <input type="date" @bind="_lockDate" style="max-width:220px" />
+                </label>
+                <div class="row">
+                    <button class="btn pri" @onclick="SaveCompanyAsync" disabled="@_busy">Save</button>
+                    @if (_lockDate is not null)
+                    {
+                        <button class="btn" @onclick="() => _lockDate = null">Clear lock date</button>
+                    }
+                </div>
+            </div>
+        </section>
+        break;
+
+    case "modules":
+        <p class="small muted" style="margin:0">
+            Modules add features to the books. Turning one off hides its screens but keeps its data in the company file, so turning it back on brings everything back.
+        </p>
+        <section class="card">
+            @foreach (var module in Modules.Catalog.Ordered)
+            {
+                var on = Modules.IsEnabled(module.Id);
+                <div class="toggle">
+                    <div>
+                        <b>@module.Name</b> <span class="small muted">v@(module.Version.ToString(2))</span>
+                        <p>@module.Description</p>
+                        @if (module.DependsOn.Count > 0)
+                        {
+                            <p>Needs: @string.Join(", ", module.DependsOn.Select(d => Modules.Catalog.Find(d)?.Name ?? d))</p>
+                        }
+                    </div>
+                    <input type="checkbox" class="sw" role="switch" checked="@on" disabled="@_busy"
+                           aria-label="@($"{module.Name} module")" @onchange="e => ToggleModuleAsync(module.Id, (bool)e.Value!)" />
+                </div>
+            }
+            @if (Modules.Catalog.Ordered.Count == 0)
+            {
+                <div class="empty">No modules are installed.</div>
+            }
+        </section>
+        <p class="small muted" style="margin:0">The core ledger (chart of accounts, journal entries) is always on. Sales, Purchases, Banking and Receipt Inbox arrive in the next phases.</p>
+        break;
+
+    case "backups":
+        <section class="card">
+            <div class="hd">
+                <h3>Backups of this company</h3>
+                <div class="row">
+                    @if (Platform.CanPickFiles)
+                    {
+                        <button class="btn sm" @onclick="() => Platform.ShowFolder(BackupFolder)">Show folder</button>
+                    }
+                    <button class="btn sm pri" @onclick="BackupNowAsync" disabled="@_busy">Back up now</button>
+                </div>
+            </div>
+            <div class="bd">
+                <p class="small muted" style="margin:0">Saved in <span class="mono">@BackupFolder</span></p>
+            </div>
+            <div class="tw">
+                <table>
+                    <thead><tr><th>Made</th><th>Note</th><th class="n">Size</th><th></th></tr></thead>
+                    <tbody>
+                        @if (_backups.Count == 0)
+                        {
+                            <tr><td colspan="4" class="empty">No backups yet. One is made each time the company closes, or press Back up now.</td></tr>
+                        }
+                        @foreach (var b in _backups)
+                        {
+                            <tr>
+                                <td>@b.CreatedLocal.ToString("ddd MMM d, yyyy h:mm:ss tt", Formats.Us)</td>
+                                <td class="muted">@b.Note</td>
+                                <td class="n">@Formats.Size(b.SizeBytes)</td>
+                                <td class="n">
+                                    @if (_confirmRestore == b.FilePath)
+                                    {
+                                        <span class="small">Replace the current books with this copy?</span>
+                                        <button class="btn sm danger solid" @onclick="() => RestoreAsync(b)" disabled="@_busy">Yes, restore</button>
+                                        <button class="btn sm" @onclick="() => _confirmRestore = null">No</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn sm" @onclick="() => _confirmRestore = b.FilePath">Restore…</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="hd"><h3>Backup settings for this PC</h3></div>
+            <div class="bd form">
+                <label class="check"><input type="checkbox" @bind="_backupOnClose" /> Back up every time a company is closed or the app exits</label>
+                <label class="check"><input type="checkbox" @bind="_reopenLast" /> Open the last company when the app starts</label>
+                <label class="f" style="max-width:220px">Backups to keep per company <input type="number" min="1" max="1000" @bind="_keepCount" /></label>
+                <label class="f">
+                    Backup folder <span class="hint">Leave blank for a Backups folder next to the company file. Point it at OneDrive or Dropbox for an off-site copy.</span>
+                    <input @bind="_backupFolder" placeholder="@Backups.FolderFor(Session.FilePath!)" />
+                </label>
+                <div class="row"><button class="btn pri" @onclick="SaveBackupSettings">Save</button></div>
+            </div>
+        </section>
+        <p class="small muted" style="margin:0">Restoring first backs up the current file (marked "before restore"), so a restore can itself be undone.</p>
+        break;
+
+    default:
+        @if (ModulePages.FirstOrDefault(p => Slug(p.Title) == Current) is { } modulePage)
+        {
+            <DynamicComponent Type="modulePage.ComponentType" />
+        }
+        else
+        {
+            <p>There is no settings page called @Current.</p>
+        }
+        break;
+}
+
+@code {
+    [Parameter] public string? Tab { get; set; }
+
+    private string Current => string.IsNullOrEmpty(Tab) ? "company" : Tab.ToLowerInvariant();
+
+    private bool _busy;
+    private string? _message;
+    private IReadOnlyList<string>? _problems;
+
+    private string _companyName = "";
+    private int _fiscalMonth = 1;
+    private DateOnly? _lockDate;
+
+    private IReadOnlyList<BackupInfo> _backups = [];
+    private string? _confirmRestore;
+    private bool _backupOnClose, _reopenLast;
+    private int _keepCount;
+    private string? _backupFolder;
+
+    private string BackupFolder => Backups.FolderFor(Session.FilePath!);
+
+    private IEnumerable<SettingsPage> ModulePages => Ui.SettingsPages
+        .Where(p => Modules.IsEnabled(p.ModuleId))
+        .OrderBy(p => p.Order)
+        .Select(p => p.Item);
+
+    private static string Slug(string title) => new string(title.ToLowerInvariant().Select(c => char.IsLetterOrDigit(c) ? c : '-').ToArray());
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _message = null;
+        _problems = null;
+        _confirmRestore = null;
+        if (!Session.IsOpen) return;
+
+        var settings = await Session.GetSettingsAsync();
+        _companyName = settings.CompanyName;
+        _fiscalMonth = settings.FiscalYearStartMonth;
+        _lockDate = settings.LockDate;
+
+        var app = AppSettings.Current;
+        _backupOnClose = app.BackupOnClose;
+        _reopenLast = app.ReopenLastCompany;
+        _keepCount = app.BackupKeepCount;
+        _backupFolder = app.BackupFolder;
+        _backups = Backups.List(Session.FilePath!);
+    }
+
+    private Task SaveCompanyAsync() => RunAsync(async () =>
+    {
+        await Session.SaveSettingsAsync(_companyName, _fiscalMonth, _lockDate);
+        _message = "Company settings saved.";
+    });
+
+    private Task ToggleModuleAsync(string id, bool on) => RunAsync(async () =>
+    {
+        if (on) await Modules.EnableAsync(id);
+        else await Modules.DisableAsync(id);
+        _message = $"{Modules.Catalog.Find(id)!.Name} turned {(on ? "on" : "off")}.";
+    });
+
+    private Task BackupNowAsync() => RunAsync(async () =>
+    {
+        var backup = await Backups.CreateAsync(Session.FilePath!);
+        _backups = Backups.List(Session.FilePath!);
+        _message = $"Backed up to {backup.FileName}.";
+    });
+
+    private Task RestoreAsync(BackupInfo backup) => RunAsync(async () =>
+    {
+        await Session.RestoreAsync(backup.FilePath);
+        _backups = Backups.List(Session.FilePath!);
+        _confirmRestore = null;
+        _message = $"Restored the books from {backup.CreatedLocal.ToString("MMM d, yyyy h:mm tt", Formats.Us)}.";
+    });
+
+    private void SaveBackupSettings()
+    {
+        var s = AppSettings.Current;
+        s.BackupOnClose = _backupOnClose;
+        s.ReopenLastCompany = _reopenLast;
+        s.BackupKeepCount = _keepCount;
+        s.BackupFolder = _backupFolder;
+        AppSettings.Save(s);
+        _keepCount = AppSettings.Current.BackupKeepCount;
+        _backups = Backups.List(Session.FilePath!);
+        _message = "Backup settings saved.";
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        _message = null;
+        _problems = null;
+        try { await action(); }
+        catch (Exception ex) when (ex is CompanyFileException or ModuleRuleException or IOException or UnauthorizedAccessException)
+        {
+            _problems = [ex.Message];
+        }
+        finally { _busy = false; }
+    }
+}

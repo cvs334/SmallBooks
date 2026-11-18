@@ -1,0 +1,15 @@
+@* The app's root component. Module pages are found through the assemblies modules registered. *@
+@inject UiCatalog Ui
+
+<Router AppAssembly="typeof(Routes).Assembly" AdditionalAssemblies="Ui.PageAssemblies">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h2" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <div class="page-head"><h2>Page not found</h2></div>
+            <p>There is nothing at this address. <a href="">Go to the home page</a>.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

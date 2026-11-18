@@ -1,0 +1,118 @@
+@page "/"
+@inject ILedgerQueries Ledger
+@inject IChartOfAccounts Chart
+@inject CompanySession Session
+@inject ModuleHost Modules
+@inject UiCatalog Ui
+@inject NavigationManager Nav
+
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">Home</h2>
+        <p class="sub">@Session.CompanyName · as of @Formats.Date(Formats.Today)</p>
+    </div>
+    <div class="row">
+        <a class="btn" href="accounts/new">New account</a>
+        <a class="btn pri" href="journal/new">New journal entry</a>
+    </div>
+</div>
+
+@if (_loaded)
+{
+    <div class="tiles">
+        <div class="tile">
+            <div class="k">Cash and bank</div>
+            <div class="v"><MoneyText Value="_cash" Currency /></div>
+            <div class="s">Bank and cash accounts</div>
+        </div>
+        <div class="tile">
+            <div class="k">Customers owe you</div>
+            <div class="v"><MoneyText Value="_receivable" Currency /></div>
+            <div class="s">Accounts receivable</div>
+        </div>
+        <div class="tile">
+            <div class="k">You owe vendors</div>
+            <div class="v"><MoneyText Value="_payable" Currency /></div>
+            <div class="s">Accounts payable and cards</div>
+        </div>
+        <div class="tile">
+            <div class="k">Profit this fiscal year</div>
+            <div class="v"><MoneyText Value="_profit" Currency /></div>
+            <div class="s">Since @Formats.Date(_fyStart)</div>
+        </div>
+        @foreach (var tile in Tiles)
+        {
+            <DynamicComponent Type="tile" />
+        }
+    </div>
+
+    <section class="card">
+        <div class="hd">
+            <h3>Recent journal entries</h3>
+            <a class="btn sm" href="journal">See all</a>
+        </div>
+        @if (_recent.Count == 0)
+        {
+            <div class="empty">
+                No entries yet. Record opening balances or your first transaction with a <a href="journal/new">journal entry</a>.
+            </div>
+        }
+        else
+        {
+            <div class="tw">
+                <table>
+                    <thead><tr><th>Entry</th><th>Date</th><th>Memo</th><th>From</th><th class="n">Amount</th></tr></thead>
+                    <tbody>
+                        @foreach (var e in _recent)
+                        {
+                            <tr class="click" @onclick='() => Nav.NavigateTo($"journal/{e.Id}")'>
+                                <td class="mono"><a href="journal/@e.Id">@e.Number</a></td>
+                                <td>@Formats.Date(e.Date)</td>
+                                <td>@e.Memo @if (e.IsReversed) { <span class="pill p-mute">Reversed</span> } @if (e.IsReversal) { <span class="pill p-warn">Reversal</span> }</td>
+                                <td>@Formats.Source(e.SourceModule)</td>
+                                <td class="n"><MoneyText Value="e.Total" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private bool _loaded;
+    private Money _cash, _receivable, _payable, _profit;
+    private DateOnly _fyStart;
+    private IReadOnlyList<JournalEntrySummary> _recent = [];
+
+    private IEnumerable<Type> Tiles => Ui.DashboardTiles
+        .Where(t => Modules.IsEnabled(t.ModuleId))
+        .OrderBy(t => t.Order)
+        .Select(t => t.Item.ComponentType);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await Session.GetSettingsAsync();
+        var today = Formats.Today;
+        _fyStart = Formats.FiscalYearStart(today, settings.FiscalYearStartMonth);
+
+        var accounts = await Chart.ListAsync(includeInactive: true);
+        var now = await Ledger.GetBalancesAsync(today);
+        var beforeYear = await Ledger.GetBalancesAsync(_fyStart.AddDays(-1));
+
+        Money Sum(Func<Account, bool> which, IReadOnlyDictionary<int, Money> balances) =>
+            Money.Sum(accounts.Where(which).Select(a => balances.GetValueOrDefault(a.Id)));
+
+        _cash = Sum(a => a.Subtype is AccountSubtype.Bank or AccountSubtype.Cash, now);
+        _receivable = Sum(a => a.Subtype == AccountSubtype.AccountsReceivable, now);
+        _payable = -Sum(a => a.Subtype is AccountSubtype.AccountsPayable or AccountSubtype.CreditCard, now);
+
+        // Income and expense balances are debit-positive, so profit is the negative of their total.
+        var pl = (Func<Account, bool>)(a => !a.Type.IsBalanceSheet());
+        _profit = -(Sum(pl, now) - Sum(pl, beforeYear));
+
+        _recent = await Ledger.ListEntriesAsync(new JournalQuery(Take: 8));
+        _loaded = true;
+    }
+}

@@ -1,0 +1,93 @@
+@page "/reports/trial-balance"
+@inject ILedgerQueries Ledger
+@inject ICompanySession Session
+@inject IJSRuntime JS
+
+<div class="crumb no-print"><a href="reports">Reports</a> ›</div>
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">Trial balance</h2>
+        <p class="sub">@Session.CompanyName · as of @AsOf.ToString("MMMM d, yyyy", Us)</p>
+    </div>
+    <div class="row no-print" style="align-items:flex-end">
+        <label class="f">As of <input type="date" @bind="AsOf" /></label>
+        <button class="btn" @onclick="PrintAsync">Print</button>
+    </div>
+</div>
+
+@if (_report is { } tb)
+{
+    @if (tb.IsBalanced)
+    {
+        <Notice Kind="good">In balance: debits and credits both total <b>@tb.TotalDebits.ToCurrencyString()</b>.</Notice>
+    }
+    else
+    {
+        <Notice Kind="bad">Out of balance by @((tb.TotalDebits - tb.TotalCredits).Abs().ToCurrencyString()). This should never happen; please report it.</Notice>
+    }
+
+    <section class="card">
+        <div class="tw">
+            <table>
+                <thead>
+                    <tr><th style="width:90px">Number</th><th>Account</th><th class="n">Debit</th><th class="n">Credit</th></tr>
+                </thead>
+                <tbody>
+                    @if (tb.Rows.Count == 0)
+                    {
+                        <tr><td colspan="4" class="empty">No balances on this date.</td></tr>
+                    }
+                    @foreach (var group in tb.Rows.GroupBy(r => r.Type))
+                    {
+                        <tr class="grp"><td colspan="4">@Plural(group.Key)</td></tr>
+                        @foreach (var row in group)
+                        {
+                            <tr>
+                                <td class="mono">@row.Number</td>
+                                <td><a href="accounts/@row.AccountId">@row.Name</a></td>
+                                <td class="n"><MoneyText Value="row.Debit" BlankZero /></td>
+                                <td class="n"><MoneyText Value="row.Credit" BlankZero /></td>
+                            </tr>
+                        }
+                    }
+                    <tr class="tot">
+                        <td></td>
+                        <td>Total</td>
+                        <td class="n"><MoneyText Value="tb.TotalDebits" Currency /></td>
+                        <td class="n"><MoneyText Value="tb.TotalCredits" Currency /></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private static readonly CultureInfo Us = CultureInfo.GetCultureInfo("en-US");
+    private TrialBalance? _report;
+    private DateOnly _asOf = DateOnly.FromDateTime(DateTime.Today);
+
+    private DateOnly AsOf
+    {
+        get => _asOf;
+        set { _asOf = value; _ = LoadAsync(); }
+    }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _report = await Ledger.GetTrialBalanceAsync(_asOf);
+        StateHasChanged();
+    }
+
+    private static string Plural(AccountType type) => type switch
+    {
+        AccountType.Asset => "Assets",
+        AccountType.Liability => "Liabilities",
+        AccountType.Expense => "Expenses",
+        _ => type.ToString(),
+    };
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+}

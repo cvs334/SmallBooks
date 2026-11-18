@@ -1,0 +1,27 @@
+@* Dashboard tile: proves at a glance that debits equal credits today. *@
+@inject ILedgerQueries Ledger
+
+<a class="tile" href="reports/trial-balance" style="text-decoration:none;color:inherit">
+    <div class="k">Books in balance</div>
+    @if (_tb is null)
+    {
+        <div class="v">…</div>
+    }
+    else if (_tb.IsBalanced)
+    {
+        <div class="v" style="color:var(--good)">Yes</div>
+        <div class="s">Debits = credits = @_tb.TotalDebits.ToCurrencyString()</div>
+    }
+    else
+    {
+        <div class="v" style="color:var(--bad)">No</div>
+        <div class="s">Open the trial balance</div>
+    }
+</a>
+
+@code {
+    private TrialBalance? _tb;
+
+    protected override async Task OnInitializedAsync() =>
+        _tb = await Ledger.GetTrialBalanceAsync(DateOnly.FromDateTime(DateTime.Today));
+}

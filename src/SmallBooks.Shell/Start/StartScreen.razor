@@ -1,0 +1,160 @@
+@* Shown when no company is open: pick a recent company, open a file, or create a new company. *@
+@inject CompanySession Session
+@inject AppSettingsStore AppSettings
+@inject SmallBooksOptions Options
+@inject IPlatformServices Platform
+@inject ShellState Shell
+@inject NavigationManager Nav
+
+<div class="start">
+    <div class="start-inner">
+        <div class="brand">
+            <div class="logo" aria-hidden="true">S</div>
+            <div>
+                <h1>SmallBooks</h1>
+                <p class="sub">Open a company file, or create one to start keeping the books.</p>
+            </div>
+        </div>
+
+        @if (Shell.StartupProblem is { } startup)
+        {
+            <Notice Kind="warn">@startup</Notice>
+        }
+        @if (Session.LastBackupError is { } backupError)
+        {
+            <Notice Kind="warn">@backupError</Notice>
+        }
+        @if (_error is not null)
+        {
+            <Notice Kind="bad">@_error</Notice>
+        }
+
+        <div class="grid2">
+            <section class="card recent" aria-labelledby="recent-h">
+                <div class="hd"><h3 id="recent-h">Recent companies</h3></div>
+                <div class="bd">
+                    @if (Recent.Count == 0)
+                    {
+                        <p class="muted small" style="margin:0">Companies you open will be listed here.</p>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (var path in Recent)
+                            {
+                                <li>
+                                    <button class="file" @onclick="() => OpenAsync(path)" disabled="@_busy">
+                                        <b>@System.IO.Path.GetFileNameWithoutExtension(path)</b>
+                                        <span class="path">@path</span>
+                                    </button>
+                                    <button class="btn icon sm" title="Remove from this list" aria-label="Remove @System.IO.Path.GetFileName(path) from the list"
+                                            @onclick="() => AppSettings.RemoveRecent(path)">✕</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+
+                    <label class="f">
+                        Open another company file
+                        <input @bind="_openPath" placeholder="C:\Users\you\Documents\SmallBooks\Company.sbk" />
+                    </label>
+                    <div class="row">
+                        <button class="btn" @onclick="() => OpenAsync(_openPath)" disabled="@(_busy || string.IsNullOrWhiteSpace(_openPath))">Open</button>
+                        @if (Platform.CanPickFiles)
+                        {
+                            <button class="btn" @onclick="BrowseAsync" disabled="@_busy">Browse…</button>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <section class="card" aria-labelledby="new-h">
+                <div class="hd"><h3 id="new-h">Create a new company</h3></div>
+                <div class="bd">
+                    <label class="f">
+                        Company name
+                        <input @bind="_name" @bind:event="oninput" placeholder="Acme Coatings LLC" />
+                    </label>
+                    <label class="f">
+                        Fiscal year starts in
+                        <select @bind="_fiscalMonth">
+                            @for (var m = 1; m <= 12; m++)
+                            {
+                                <option value="@m">@Formats.Month(m)</option>
+                            }
+                        </select>
+                    </label>
+                    <label class="f">
+                        Save in folder
+                        <input @bind="_folder" @bind:event="oninput" />
+                        <span class="hint">The books are one file: <span class="mono">@NewPath</span></span>
+                    </label>
+                    <p class="small muted" style="margin:0">
+                        Starts with a chart of accounts for a small service business. You can rename, add or turn off any account later.
+                    </p>
+                    <div class="row">
+                        <button class="btn pri" @onclick="CreateAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_name))">Create company</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string? _error;
+    private bool _busy;
+    private string? _openPath;
+    private string _name = "";
+    private int _fiscalMonth = 1;
+    private string _folder = "";
+
+    private List<string> Recent => AppSettings.Current.RecentFiles;
+    private string NewPath => CompanySession.SuggestPath(_folder, string.IsNullOrWhiteSpace(_name) ? "Company" : _name);
+
+    protected override void OnInitialized() => _folder = Options.DefaultCompanyFolder;
+
+    private async Task OpenAsync(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        await RunAsync(async () =>
+        {
+            await Session.OpenAsync(path.Trim().Trim('"'));
+            Nav.NavigateTo("");
+        });
+    }
+
+    private async Task BrowseAsync()
+    {
+        var path = await Platform.PickCompanyFileAsync();
+        if (path is not null) await OpenAsync(path);
+    }
+
+    private Task CreateAsync() => RunAsync(async () =>
+    {
+        await Session.CreateAsync(new NewCompany(_name, NewPath, _fiscalMonth));
+        Nav.NavigateTo("");
+    });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (CompanyFileException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

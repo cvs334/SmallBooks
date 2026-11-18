@@ -1,0 +1,64 @@
+@page "/journal"
+@inject ILedgerQueries Ledger
+@inject NavigationManager Nav
+
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">Journal entries</h2>
+        <p class="sub">Every entry in the books, newest first, whichever screen created it.</p>
+    </div>
+    <a class="btn pri" href="journal/new">New journal entry</a>
+</div>
+
+<div class="row">
+    <label class="f" style="flex:1;min-width:200px">Search <input @bind="Search" @bind:event="oninput" placeholder="Entry number or memo" /></label>
+    <label class="f">From <input type="date" @bind="From" /></label>
+    <label class="f">To <input type="date" @bind="To" /></label>
+</div>
+
+<section class="card">
+    <div class="tw">
+        <table>
+            <thead><tr><th>Entry</th><th>Date</th><th>Memo</th><th>From</th><th class="n">Amount</th></tr></thead>
+            <tbody>
+                @if (_entries.Count == 0)
+                {
+                    <tr><td colspan="5" class="empty">@(_filtered ? "No entries match." : "No entries yet.")</td></tr>
+                }
+                @foreach (var e in _entries)
+                {
+                    <tr class="click" @onclick='() => Nav.NavigateTo($"journal/{e.Id}")'>
+                        <td class="mono"><a href="journal/@e.Id" @onclick:stopPropagation>@e.Number</a></td>
+                        <td>@Formats.Date(e.Date)</td>
+                        <td>
+                            @e.Memo
+                            @if (e.IsReversed) { <span class="pill p-mute">Reversed</span> }
+                            @if (e.IsReversal) { <span class="pill p-warn">Reversal</span> }
+                        </td>
+                        <td>@Formats.Source(e.SourceModule)</td>
+                        <td class="n"><MoneyText Value="e.Total" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@code {
+    private IReadOnlyList<JournalEntrySummary> _entries = [];
+    private string? _search;
+    private DateOnly? _from, _to;
+    private bool _filtered => !string.IsNullOrWhiteSpace(_search) || _from is not null || _to is not null;
+
+    private string? Search { get => _search; set { _search = value; _ = LoadAsync(); } }
+    private DateOnly? From { get => _from; set { _from = value; _ = LoadAsync(); } }
+    private DateOnly? To { get => _to; set { _to = value; _ = LoadAsync(); } }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _entries = await Ledger.ListEntriesAsync(new JournalQuery(_from, _to, _search, Take: 500));
+        StateHasChanged();
+    }
+}

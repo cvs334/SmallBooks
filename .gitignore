@@ -1,0 +1,20 @@
+## Visual Studio / .NET
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+TestResults/
+*.binlog
+artifacts/
+.idea/
+*.DotSettings.user
+
+## Local company files and backups created while testing
+*.sbk
+*.sbk-journal
+*.sbk-wal
+*.sbk-shm
+Backups/

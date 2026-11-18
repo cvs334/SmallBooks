@@ -1,0 +1,99 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject CompanySession Session
+@inject ModuleHost Modules
+@inject UiCatalog Ui
+@inject ReportCatalog Reports
+@inject ShellState Shell
+@inject NavigationManager Nav
+
+@if (!_started)
+{
+    <div class="start"><p class="muted">Opening SmallBooks…</p></div>
+}
+else if (!Session.IsOpen)
+{
+    <StartScreen />
+}
+else
+{
+    <div class="app">
+        <nav class="side" aria-label="Main">
+            <div class="co">
+                @Session.CompanyName
+                <small title="@Session.FilePath">@System.IO.Path.GetFileName(Session.FilePath)</small>
+            </div>
+            <NavLink href="" Match="NavLinkMatch.All">Home</NavLink>
+
+            <div class="grp">Accountant</div>
+            <NavLink href="accounts">Chart of accounts</NavLink>
+            <NavLink href="journal">Journal entries</NavLink>
+
+            @foreach (var group in ModuleNav)
+            {
+                <div class="grp">@group.Key</div>
+                @foreach (var item in group)
+                {
+                    <NavLink href="@item.Href">@item.Title</NavLink>
+                }
+            }
+
+            @if (HasReports)
+            {
+                <div class="grp">Reports</div>
+                <NavLink href="reports" Match="NavLinkMatch.All">All reports</NavLink>
+            }
+
+            <div class="spacer"></div>
+            <NavLink href="settings">Settings</NavLink>
+            <button class="link" @onclick="CloseCompanyAsync" disabled="@_closing">@(_closing ? "Backing up…" : "Close company")</button>
+        </nav>
+        <main>
+            @Body
+        </main>
+    </div>
+}
+
+@code {
+    private bool _started;
+    private bool _closing;
+
+    private IEnumerable<IGrouping<string, NavItem>> ModuleNav =>
+        Ui.NavItems
+            .Where(i => Modules.IsEnabled(i.ModuleId))
+            .OrderBy(i => i.Order)
+            .Select(i => i.Item)
+            .GroupBy(i => i.Group);
+
+    private bool HasReports => Reports.Reports.Any(r => Modules.IsEnabled(r.ModuleId));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnChanged;
+        Modules.Changed += OnChanged;
+        await Shell.EnsureStartedAsync();
+        _started = true;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task CloseCompanyAsync()
+    {
+        _closing = true;
+        try
+        {
+            await Session.CloseAsync();
+            Nav.NavigateTo("");
+        }
+        finally
+        {
+            _closing = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Modules.Changed -= OnChanged;
+    }
+}

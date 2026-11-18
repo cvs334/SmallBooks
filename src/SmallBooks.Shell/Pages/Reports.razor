@@ -1,0 +1,42 @@
+@page "/reports"
+@inject ReportCatalog Catalog
+@inject ModuleHost Modules
+
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">Reports</h2>
+        <p class="sub">Reports from every module that is turned on.</p>
+    </div>
+</div>
+
+@if (!Available.Any())
+{
+    <Notice>No reports yet. Turn on the Reports module in <a href="settings/modules">Settings</a>.</Notice>
+}
+
+@foreach (var group in Available.GroupBy(r => r.Category))
+{
+    <section class="card">
+        <div class="hd"><h3>@group.Key</h3></div>
+        <div class="tw">
+            <table>
+                <tbody>
+                    @foreach (var report in group)
+                    {
+                        <tr>
+                            <td style="width:240px"><a href="@report.Href"><b>@report.Title</b></a></td>
+                            <td class="muted">@report.Description</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private IEnumerable<ReportDefinition> Available => Catalog.Reports
+        .Where(r => Modules.IsEnabled(r.ModuleId))
+        .Select(r => r.Report)
+        .OrderBy(r => r.Category).ThenBy(r => r.Order).ThenBy(r => r.Title);
+}

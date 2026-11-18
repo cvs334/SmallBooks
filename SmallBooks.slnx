@@ -1,0 +1,26 @@
+<Solution>
+  <Project Path="src/SmallBooks.Desktop/SmallBooks.Desktop.csproj" />
+  <Folder Name="/src/">
+    <Project Path="src/SmallBooks.Core/SmallBooks.Core.csproj" />
+    <Project Path="src/SmallBooks.Data/SmallBooks.Data.csproj" />
+    <Project Path="src/SmallBooks.Modules.Abstractions/SmallBooks.Modules.Abstractions.csproj" />
+    <Project Path="src/SmallBooks.Ui.Shared/SmallBooks.Ui.Shared.csproj" />
+    <Project Path="src/SmallBooks.Shell/SmallBooks.Shell.csproj" />
+    <Project Path="src/SmallBooks.DevHost/SmallBooks.DevHost.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/SmallBooks.Modules.Reports/SmallBooks.Modules.Reports.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SmallBooks.Tests/SmallBooks.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="README.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path=".editorconfig" />
+    <File Path="docs/architecture.md" />
+    <File Path="docs/writing-a-module.md" />
+    <File Path=".github/workflows/build.yml" />
+  </Folder>
+</Solution>

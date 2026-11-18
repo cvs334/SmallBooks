@@ -1,0 +1,17 @@
+@* Shows an amount right-aligned in tabular figures. Negative amounts show in brackets. *@
+<span class="money @(Value.IsNegative ? "neg" : "")">@Text</span>
+
+@code {
+    [Parameter] public Money Value { get; set; }
+
+    /// <summary>Show nothing instead of 0.00.</summary>
+    [Parameter] public bool BlankZero { get; set; }
+
+    /// <summary>Include the $ sign.</summary>
+    [Parameter] public bool Currency { get; set; }
+
+    private string Text =>
+        BlankZero && Value.IsZero ? "" :
+        Currency ? Value.ToCurrencyString() :
+        Value.IsNegative ? $"({(-Value)})" : Value.ToString();
+}

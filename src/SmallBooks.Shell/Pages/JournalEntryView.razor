@@ -1,0 +1,141 @@
+@page "/journal/{Id:int}"
+@inject ILedgerQueries Ledger
+@inject IChartOfAccounts Chart
+@inject IPostingService Posting
+@inject NavigationManager Nav
+
+<div class="crumb"><a href="journal">Journal entries</a> ›</div>
+@if (_entry is { } e)
+{
+    <div class="page-head">
+        <div>
+            <h2 tabindex="-1">@e.Number</h2>
+            <p class="sub">
+                @Formats.Date(e.Date) · @Formats.Source(e.SourceModule)
+                @if (e.IsReversed) { <span class="pill p-mute">Reversed</span> }
+                @if (e.IsReversal) { <span class="pill p-warn">Reversal</span> }
+            </p>
+        </div>
+        <div class="row no-print">
+            <a class="btn" href="journal/new">New journal entry</a>
+        </div>
+    </div>
+
+    @if (_justPosted)
+    {
+        <Notice Kind="good">Posted @e.Number. The books are in balance.</Notice>
+    }
+    @if (e.ReversalOfId is { } originalId)
+    {
+        <Notice Kind="info">This entry reverses <a href="journal/@originalId">@(_otherNumber ?? "another entry")</a>.</Notice>
+    }
+    @if (e.ReversedById is { } reversalId)
+    {
+        <Notice Kind="info">This entry was reversed by <a href="journal/@reversalId">@(_otherNumber ?? "a later entry")</a>, so together they add up to nothing.</Notice>
+    }
+
+    <section class="card">
+        @if (!string.IsNullOrWhiteSpace(e.Memo))
+        {
+            <div class="hd"><h3>@e.Memo</h3></div>
+        }
+        <div class="tw">
+            <table>
+                <thead><tr><th>#</th><th>Account</th><th>Description</th><th class="n">Debit</th><th class="n">Credit</th></tr></thead>
+                <tbody>
+                    @foreach (var line in e.Lines)
+                    {
+                        <tr>
+                            <td class="muted small">@line.LineNumber</td>
+                            <td><a href="accounts/@line.AccountId">@AccountName(line.AccountId)</a></td>
+                            <td>@line.Description</td>
+                            <td class="n"><MoneyText Value="line.Debit" BlankZero /></td>
+                            <td class="n"><MoneyText Value="line.Credit" BlankZero /></td>
+                        </tr>
+                    }
+                    <tr class="tot">
+                        <td></td><td>Total</td><td></td>
+                        <td class="n"><MoneyText Value="e.TotalDebits" /></td>
+                        <td class="n"><MoneyText Value="e.TotalCredits" /></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <p class="small muted">Posted @e.CreatedAtUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt", Formats.Us)@(e.SourceType is null ? "" : $" from {e.SourceType} {e.SourceId}").</p>
+
+    @if (!e.IsReversed && !e.IsReversal && e.SourceModule == SourceModules.Core)
+    {
+        <section class="card no-print">
+            <div class="hd"><h3>Reverse this entry</h3></div>
+            <div class="bd">
+                <p class="small muted" style="margin:0">
+                    Posts a new entry with every debit and credit swapped, so the two cancel out. Use this to fix a mistake, then post a corrected entry.
+                </p>
+                <ProblemList Problems="_problems" />
+                <div class="row" style="align-items:flex-end">
+                    <label class="f">Reversal date <input type="date" @bind="_reverseDate" /></label>
+                    <label class="f" style="flex:1;min-width:220px">Memo <input @bind="_reverseMemo" placeholder="@($"Reverses {e.Number}")" /></label>
+                    <button class="btn" @onclick="ReverseAsync" disabled="@_busy">Reverse entry</button>
+                </div>
+            </div>
+        </section>
+    }
+    else if (!e.IsReversed && !e.IsReversal)
+    {
+        <p class="small muted">This entry belongs to a @e.SourceType in @Formats.Source(e.SourceModule). Change or void it there, and the journal follows.</p>
+    }
+}
+else if (_missing)
+{
+    <div class="page-head"><h2 tabindex="-1">Entry not found</h2></div>
+    <p>There is no journal entry @Id. <a href="journal">Back to journal entries</a>.</p>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    [SupplyParameterFromQuery(Name = "posted")] public int? Posted { get; set; }
+
+    private JournalEntry? _entry;
+    private bool _missing, _busy, _justPosted;
+    private string? _otherNumber;
+    private Dictionary<int, Account> _accounts = [];
+    private DateOnly _reverseDate = Formats.Today;
+    private string? _reverseMemo;
+    private IReadOnlyList<string>? _problems;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _problems = null;
+        _justPosted = Posted == 1;
+        _entry = await Ledger.GetEntryAsync(Id);
+        _missing = _entry is null;
+        if (_entry is null) return;
+
+        _accounts = (await Chart.ListAsync(includeInactive: true)).ToDictionary(a => a.Id);
+        var otherId = _entry.ReversalOfId ?? _entry.ReversedById;
+        _otherNumber = otherId is { } o ? (await Ledger.GetEntryAsync(o))?.Number : null;
+        if (_reverseDate < _entry.Date) _reverseDate = _entry.Date;
+    }
+
+    private string AccountName(int id) => _accounts.TryGetValue(id, out var a) ? a.DisplayName : $"Account {id}";
+
+    private async Task ReverseAsync()
+    {
+        _busy = true;
+        _problems = null;
+        try
+        {
+            var reversal = await Posting.ReverseAsync(Id, _reverseDate, _reverseMemo);
+            Nav.NavigateTo($"journal/{reversal.Id}?posted=1");
+        }
+        catch (PostingException ex)
+        {
+            _problems = ex.Problems;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

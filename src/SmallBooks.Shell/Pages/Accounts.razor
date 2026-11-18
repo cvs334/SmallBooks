@@ -1,0 +1,85 @@
+@page "/accounts"
+@inject IChartOfAccounts Chart
+@inject ILedgerQueries Ledger
+@inject NavigationManager Nav
+
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">Chart of accounts</h2>
+        <p class="sub">Every account the books use, with today's balance. Click an account to see its transactions.</p>
+    </div>
+    <div class="row">
+        <label class="check"><input type="checkbox" @bind="ShowInactive" /> Show inactive</label>
+        <a class="btn pri" href="accounts/new">New account</a>
+    </div>
+</div>
+
+@if (_accounts is not null)
+{
+    <section class="card">
+        <div class="tw">
+            <table>
+                <thead>
+                    <tr><th style="width:90px">Number</th><th>Name</th><th>Type</th><th class="n">Balance</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var group in _accounts.GroupBy(a => a.Type))
+                    {
+                        <tr class="grp"><td colspan="4">@Plural(group.Key)</td></tr>
+                        @foreach (var a in group)
+                        {
+                            <tr class="click @(a.IsActive ? "" : "dim")" @onclick='() => Nav.NavigateTo($"accounts/{a.Id}")'>
+                                <td class="mono">@a.Number</td>
+                                <td class="@(a.ParentId is null ? "" : "child")">
+                                    <a href="accounts/@a.Id" @onclick:stopPropagation>@a.Name</a>
+                                    @if (a.IsSystem) { <span class="pill p-acc" title="Used by the app; can be renamed but not deleted">System</span> }
+                                    @if (!a.IsActive) { <span class="pill p-mute">Inactive</span> }
+                                </td>
+                                <td class="muted">@a.Subtype.DisplayName()</td>
+                                <td class="n"><MoneyText Value="Balance(a)" BlankZero /></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private IReadOnlyList<Account>? _accounts;
+    private IReadOnlyDictionary<int, Money> _balances = new Dictionary<int, Money>();
+    private bool _showInactive;
+
+    private bool ShowInactive
+    {
+        get => _showInactive;
+        set { _showInactive = value; _ = LoadAsync(); }
+    }
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _accounts = await Chart.ListAsync(_showInactive);
+        _balances = await Ledger.GetBalancesAsync();
+        StateHasChanged();
+    }
+
+    /// <summary>Balance in the account's normal direction, so a healthy bank or income account reads positive.</summary>
+    private Money Balance(Account a)
+    {
+        var b = _balances.GetValueOrDefault(a.Id);
+        return a.NormalBalance == NormalBalance.Debit ? b : -b;
+    }
+
+    private static string Plural(AccountType type) => type switch
+    {
+        AccountType.Asset => "Assets",
+        AccountType.Liability => "Liabilities",
+        AccountType.Equity => "Equity",
+        AccountType.Income => "Income",
+        AccountType.Expense => "Expenses",
+        _ => type.ToString(),
+    };
+}

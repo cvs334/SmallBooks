@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Ledger domain: accounts, journal entries, money and the posting rules.
+       No database or UI code lives here, so the rules are easy to test. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+</Project>

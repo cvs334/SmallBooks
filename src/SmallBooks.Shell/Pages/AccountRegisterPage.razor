@@ -1,0 +1,89 @@
+@page "/accounts/{Id:int}"
+@inject ILedgerQueries Ledger
+@inject NavigationManager Nav
+
+<div class="crumb"><a href="accounts">Chart of accounts</a> ›</div>
+@if (_register is { } r)
+{
+    <div class="page-head">
+        <div>
+            <h2 tabindex="-1">@r.Account.DisplayName</h2>
+            <p class="sub">
+                @r.Account.Subtype.DisplayName()
+                @if (r.Account.IsSystem) { <span class="pill p-acc">System</span> }
+                @if (!r.Account.IsActive) { <span class="pill p-mute">Inactive</span> }
+                @if (!string.IsNullOrWhiteSpace(r.Account.Description)) { <span> · @r.Account.Description</span> }
+            </p>
+        </div>
+        <div class="row">
+            <a class="btn" href="accounts/@Id/edit">Edit account</a>
+            <a class="btn pri" href="journal/new">New journal entry</a>
+        </div>
+    </div>
+
+    <div class="row">
+        <label class="f">From <input type="date" @bind="From" /></label>
+        <label class="f">To <input type="date" @bind="To" /></label>
+        <div class="tile" style="margin-left:auto;min-width:200px">
+            <div class="k">Balance @(_to is null ? "today" : $"on {Formats.Date(_to.Value)}")</div>
+            <div class="v"><MoneyText Value="r.ClosingBalance" Currency /></div>
+        </div>
+    </div>
+
+    <section class="card">
+        <div class="tw">
+            <table>
+                <thead>
+                    <tr><th>Date</th><th>Entry</th><th>Memo</th><th class="n">Debit</th><th class="n">Credit</th><th class="n">Balance</th></tr>
+                </thead>
+                <tbody>
+                    @if (r.From is not null)
+                    {
+                        <tr class="dim"><td>@Formats.Date(r.From.Value)</td><td></td><td>Opening balance</td><td></td><td></td><td class="n"><MoneyText Value="r.OpeningBalance" /></td></tr>
+                    }
+                    @if (r.Lines.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty">No transactions@(r.From is null && r.To is null ? "" : " in these dates").</td></tr>
+                    }
+                    @foreach (var line in r.Lines)
+                    {
+                        <tr class="click" @onclick='() => Nav.NavigateTo($"journal/{line.JournalEntryId}")'>
+                            <td>@Formats.Date(line.Date)</td>
+                            <td class="mono"><a href="journal/@line.JournalEntryId" @onclick:stopPropagation>@line.Number</a></td>
+                            <td>@(line.Description ?? line.Memo)</td>
+                            <td class="n"><MoneyText Value="line.Debit" BlankZero /></td>
+                            <td class="n"><MoneyText Value="line.Credit" BlankZero /></td>
+                            <td class="n"><MoneyText Value="line.RunningBalance" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private AccountRegister? _register;
+    private DateOnly? _from, _to;
+
+    private DateOnly? From { get => _from; set { _from = value; _ = LoadAsync(); } }
+    private DateOnly? To { get => _to; set { _to = value; _ = LoadAsync(); } }
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _register = await Ledger.GetAccountRegisterAsync(Id, _from, _to);
+        }
+        catch (KeyNotFoundException)
+        {
+            Nav.NavigateTo("accounts");
+            return;
+        }
+        StateHasChanged();
+    }
+}

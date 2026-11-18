@@ -1,0 +1,31 @@
+@* A drop-down of accounts grouped by type. Shows inactive accounts only if one is already chosen. *@
+<select class="account-picker" aria-label="@AriaLabel" disabled="@Disabled" value="@(Value?.ToString() ?? "")" @onchange="OnChange">
+    <option value="">@Placeholder</option>
+    @foreach (var group in Visible.GroupBy(a => a.Type))
+    {
+        <optgroup label="@group.Key">
+            @foreach (var account in group)
+            {
+                <option value="@account.Id">@(account.ParentId is null ? "" : "   ")@account.DisplayName@(account.IsActive ? "" : " (inactive)")</option>
+            }
+        </optgroup>
+    }
+</select>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<Account> Accounts { get; set; } = [];
+    [Parameter] public int? Value { get; set; }
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Choose an account";
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Optional filter, such as only Bank accounts.</summary>
+    [Parameter] public Func<Account, bool>? Filter { get; set; }
+
+    private IEnumerable<Account> Visible =>
+        Accounts.Where(a => (a.IsActive || a.Id == Value) && (Filter is null || Filter(a) || a.Id == Value));
+
+    private Task OnChange(ChangeEventArgs e) =>
+        ValueChanged.InvokeAsync(int.TryParse(e.Value?.ToString(), out var id) ? id : null);
+}

@@ -1,0 +1,25 @@
+@* Shows one or more problems (for example, why an entry could not post). *@
+@if (Problems is { Count: > 0 })
+{
+    <div class="note bad" role="alert">
+        @if (Problems.Count == 1)
+        {
+            @Problems[0]
+        }
+        else
+        {
+            <b>@Title</b>
+            <ul>
+                @foreach (var p in Problems)
+                {
+                    <li>@p</li>
+                }
+            </ul>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<string>? Problems { get; set; }
+    [Parameter] public string Title { get; set; } = "Please fix these first:";
+}

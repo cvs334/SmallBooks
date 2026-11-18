@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- Reports module: read-only reports over the ledger. Phase 1 ships the trial
+       balance; P&L, balance sheet, GL detail and aging follow. Like every module it
+       references only Abstractions and Ui.Shared. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\SmallBooks.Modules.Abstractions\SmallBooks.Modules.Abstractions.csproj" />
+    <ProjectReference Include="..\..\SmallBooks.Ui.Shared\SmallBooks.Ui.Shared.csproj" />
+  </ItemGroup>
+</Project>

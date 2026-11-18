@@ -1,0 +1,169 @@
+@page "/journal/new"
+@inject IChartOfAccounts Chart
+@inject IPostingService Posting
+@inject CompanySession Session
+@inject NavigationManager Nav
+
+<div class="crumb"><a href="journal">Journal entries</a> ›</div>
+<div class="page-head">
+    <div>
+        <h2 tabindex="-1">New journal entry</h2>
+        <p class="sub">Debits must equal credits. Once posted, an entry is never changed; to undo it, reverse it.</p>
+    </div>
+</div>
+
+@if (_lockDate is { } locked)
+{
+    <Notice Kind="info">The books are closed through @Formats.Date(locked). Entries must be dated after that.</Notice>
+}
+<ProblemList Problems="_problems" Title="This entry can't post yet:" />
+
+<section class="card">
+    <div class="bd">
+        <div class="grid2">
+            <label class="f" style="max-width:220px">
+                Date
+                <input type="date" @bind="_date" />
+            </label>
+            <label class="f">
+                Memo
+                <input @bind="_memo" maxlength="500" placeholder="What this entry is for" />
+            </label>
+        </div>
+    </div>
+    <div class="tw">
+        <table class="je-lines">
+            <thead>
+                <tr><th>#</th><th>Account</th><th>Description</th><th class="n">Debit</th><th class="n">Credit</th><th></th></tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < _lines.Count; i++)
+                {
+                    var line = _lines[i];
+                    var n = i + 1;
+                    <tr @key="line">
+                        <td class="muted small">@n</td>
+                        <td class="acct">
+                            <AccountPicker Accounts="_accounts" Value="line.AccountId" ValueChanged="id => OnAccountChosen(line, id)" AriaLabel="@($"Line {n} account")" />
+                        </td>
+                        <td><input @bind="line.Description" maxlength="500" aria-label="@($"Line {n} description")" /></td>
+                        <td class="amt"><MoneyInput Value="line.Debit" ValueChanged="v => SetDebit(line, v)" AriaLabel="@($"Line {n} debit")" /></td>
+                        <td class="amt"><MoneyInput Value="line.Credit" ValueChanged="v => SetCredit(line, v)" AriaLabel="@($"Line {n} credit")" /></td>
+                        <td class="x">
+                            <button class="btn icon sm" title="Remove line" aria-label="@($"Remove line {n}")" @onclick="() => RemoveLine(line)" disabled="@(_lines.Count <= 2)">✕</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="balance-bar">
+        <button class="btn sm" @onclick="AddLine" style="margin-right:auto">Add line</button>
+        <span>Debits <span class="n">@TotalDebits</span></span>
+        <span>Credits <span class="n">@TotalCredits</span></span>
+        @if (Difference.IsZero && !TotalDebits.IsZero)
+        {
+            <span class="pill p-good">Balanced</span>
+        }
+        else if (!Difference.IsZero)
+        {
+            <span class="pill p-warn">Off by @Difference.Abs()</span>
+        }
+    </div>
+</section>
+
+<div class="row">
+    <button class="btn pri" @onclick="PostAsync" disabled="@(_busy || !Difference.IsZero || TotalDebits.IsZero)">Post entry</button>
+    <a class="btn" href="journal">Cancel</a>
+    <span class="small muted">Tip: choose an account on an empty line and the amount that balances the entry is filled in for you.</span>
+</div>
+
+@code {
+    private sealed class LineModel
+    {
+        public int? AccountId { get; set; }
+        public string? Description { get; set; }
+        public Money Debit { get; set; }
+        public Money Credit { get; set; }
+        public bool IsBlank => AccountId is null && Debit.IsZero && Credit.IsZero && string.IsNullOrWhiteSpace(Description);
+    }
+
+    private IReadOnlyList<Account> _accounts = [];
+    private readonly List<LineModel> _lines = [new(), new(), new(), new()];
+    private DateOnly _date = Formats.Today;
+    private string? _memo;
+    private DateOnly? _lockDate;
+    private IReadOnlyList<string>? _problems;
+    private bool _busy;
+
+    private Money TotalDebits => Money.Sum(_lines.Select(l => l.Debit));
+    private Money TotalCredits => Money.Sum(_lines.Select(l => l.Credit));
+    private Money Difference => TotalDebits - TotalCredits;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _accounts = await Chart.ListAsync();
+        _lockDate = (await Session.GetSettingsAsync()).LockDate;
+        if (_lockDate is { } locked && _date <= locked) _date = locked.AddDays(1);
+    }
+
+    private void OnAccountChosen(LineModel line, int? accountId)
+    {
+        line.AccountId = accountId;
+        // Fill in whatever amount brings the entry back into balance.
+        if (accountId is not null && line.Debit.IsZero && line.Credit.IsZero)
+        {
+            var diff = Money.Sum(_lines.Where(l => l != line).Select(l => l.Debit - l.Credit));
+            if (diff.IsNegative) line.Debit = -diff;
+            else if (!diff.IsZero) line.Credit = diff;
+        }
+        if (_lines[^1] == line) _lines.Add(new());
+    }
+
+    // A line is either a debit or a credit, so typing one side clears the other
+    // (including an amount that was filled in automatically).
+    private static void SetDebit(LineModel line, Money value)
+    {
+        line.Debit = value;
+        if (!value.IsZero) line.Credit = Money.Zero;
+    }
+
+    private static void SetCredit(LineModel line, Money value)
+    {
+        line.Credit = value;
+        if (!value.IsZero) line.Debit = Money.Zero;
+    }
+
+    private void AddLine() => _lines.Add(new());
+
+    private void RemoveLine(LineModel line)
+    {
+        if (_lines.Count > 2) _lines.Remove(line);
+    }
+
+    private async Task PostAsync()
+    {
+        _busy = true;
+        _problems = null;
+        try
+        {
+            var used = _lines.Where(l => !l.IsBlank).ToList();
+            var draft = new JournalEntryDraft
+            {
+                Date = _date,
+                Memo = _memo,
+                Lines = used.Select(l => new JournalLineDraft(l.AccountId ?? 0, l.Debit, l.Credit, l.Description)).ToList(),
+            };
+            var entry = await Posting.PostAsync(draft);
+            Nav.NavigateTo($"journal/{entry.Id}?posted=1");
+        }
+        catch (PostingException ex)
+        {
+            _problems = ex.Problems;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

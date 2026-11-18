@@ -1,0 +1,174 @@
+@page "/accounts/new"
+@page "/accounts/{Id:int}/edit"
+@inject IChartOfAccounts Chart
+@inject NavigationManager Nav
+
+<div class="crumb"><a href="accounts">Chart of accounts</a> ›</div>
+<div class="page-head">
+    <h2 tabindex="-1">@(Id is null ? "New account" : $"Edit {_original?.Name}")</h2>
+</div>
+
+@if (_ready)
+{
+    @if (_original?.IsSystem == true)
+    {
+        <Notice Kind="info">This is a system account the app relies on. You can rename or renumber it, but not change its type, deactivate it or delete it.</Notice>
+    }
+    <ProblemList Problems="_problems" />
+
+    <section class="card">
+        <div class="bd form">
+            <div class="grid2">
+                <label class="f">
+                    Name
+                    <input @bind="_name" maxlength="100" />
+                </label>
+                <label class="f">
+                    Number <span class="hint">Optional, such as 6450</span>
+                    <input @bind="_number" maxlength="20" class="mono" />
+                </label>
+            </div>
+            <label class="f">
+                Type
+                <select @bind="SubtypeValue" disabled="@(_original?.IsSystem == true)">
+                    @foreach (var type in Enum.GetValues<AccountType>())
+                    {
+                        <optgroup label="@type">
+                            @foreach (var subtype in type.Subtypes())
+                            {
+                                <option value="@((int)subtype)">@subtype.DisplayName()</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+            </label>
+            <label class="f">
+                Group under <span class="hint">Optional parent account, for subtotals on reports</span>
+                <select @bind="ParentValue">
+                    <option value="">None (top level)</option>
+                    @foreach (var p in Parents)
+                    {
+                        <option value="@p.Id">@p.DisplayName</option>
+                    }
+                </select>
+            </label>
+            <label class="f">
+                Description
+                <textarea @bind="_description" maxlength="500" rows="2"></textarea>
+            </label>
+            <div class="row between">
+                <div class="row">
+                    <button class="btn pri" @onclick="SaveAsync" disabled="@_busy">Save</button>
+                    <a class="btn" href="@(Id is null ? "accounts" : $"accounts/{Id}")">Cancel</a>
+                </div>
+                @if (_original is { IsSystem: false } existing)
+                {
+                    <div class="row">
+                        <button class="btn" @onclick="ToggleActiveAsync" disabled="@_busy">@(existing.IsActive ? "Deactivate" : "Reactivate")</button>
+                        @if (!_hasActivity)
+                        {
+                            @if (_confirmDelete)
+                            {
+                                <span class="small">Delete for good?</span>
+                                <button class="btn danger solid" @onclick="DeleteAsync" disabled="@_busy">Yes, delete</button>
+                                <button class="btn" @onclick="() => _confirmDelete = false">No</button>
+                            }
+                            else
+                            {
+                                <button class="btn danger" @onclick="() => _confirmDelete = true">Delete</button>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+            @if (_original is { IsSystem: false } && _hasActivity)
+            {
+                <p class="small muted" style="margin:0">This account has transactions, so it can be deactivated but not deleted.</p>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private bool _ready, _busy, _hasActivity, _confirmDelete;
+    private Account? _original;
+    private IReadOnlyList<Account> _all = [];
+    private IReadOnlyList<string>? _problems;
+    private string _name = "", _number = "", _description = "";
+    private AccountSubtype _subtype = AccountSubtype.Expense;
+    private int? _parentId;
+
+    private int SubtypeValue
+    {
+        get => (int)_subtype;
+        set
+        {
+            _subtype = (AccountSubtype)value;
+            if (_parentId is { } p && _all.FirstOrDefault(a => a.Id == p)?.Type != _subtype.TypeOf()) _parentId = null;
+        }
+    }
+
+    private string ParentValue
+    {
+        get => _parentId?.ToString() ?? "";
+        set => _parentId = int.TryParse(value, out var id) ? id : null;
+    }
+
+    private IEnumerable<Account> Parents => _all.Where(a =>
+        a.ParentId is null && a.IsActive && a.Id != Id && a.Type == _subtype.TypeOf());
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _all = await Chart.ListAsync(includeInactive: true);
+        if (Id is { } id)
+        {
+            _original = await Chart.GetAsync(id);
+            if (_original is null) { Nav.NavigateTo("accounts"); return; }
+            _name = _original.Name;
+            _number = _original.Number ?? "";
+            _description = _original.Description ?? "";
+            _subtype = _original.Subtype;
+            _parentId = _original.ParentId;
+            _hasActivity = await Chart.HasActivityAsync(id);
+        }
+        else if (Nav.Uri.Contains("type=", StringComparison.Ordinal) &&
+                 Enum.TryParse<AccountSubtype>(Nav.Uri.Split("type=")[1].Split('&')[0], out var preset))
+        {
+            _subtype = preset;
+        }
+        _ready = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var input = new AccountInput(_name, _subtype, _number, _description, _parentId);
+            var saved = Id is { } id ? await Chart.UpdateAsync(id, input) : await Chart.CreateAsync(input);
+            Nav.NavigateTo($"accounts/{saved.Id}");
+        });
+    }
+
+    private Task ToggleActiveAsync() => RunAsync(async () =>
+    {
+        await Chart.SetActiveAsync(Id!.Value, !_original!.IsActive);
+        Nav.NavigateTo($"accounts/{Id}");
+    });
+
+    private Task DeleteAsync() => RunAsync(async () =>
+    {
+        await Chart.DeleteAsync(Id!.Value);
+        Nav.NavigateTo("accounts");
+    });
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _busy = true;
+        _problems = null;
+        try { await action(); }
+        catch (AccountRuleException ex) { _problems = [ex.Message]; }
+        finally { _busy = false; }
+    }
+}

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Runs the same screens in a web browser (Blazor Server) for quick debugging
+       and automated screenshots on any OS. Not shipped: the real app is SmallBooks.Desktop.
+       It listens on localhost only. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SmallBooks.Shell\SmallBooks.Shell.csproj" />
+    <ProjectReference Include="..\Modules\SmallBooks.Modules.Reports\SmallBooks.Modules.Reports.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,57 @@
+@* A text box for an amount. Accepts 1234.5, 1,234.50 or $1,234.50; anything else is flagged, not guessed. *@
+<input class="money-input @(_invalid ? "invalid" : "")"
+       inputmode="decimal"
+       autocomplete="off"
+       placeholder="@Placeholder"
+       aria-label="@AriaLabel"
+       aria-invalid="@(_invalid ? "true" : "false")"
+       disabled="@Disabled"
+       value="@_text"
+       @onchange="OnChange"
+       @onfocus="OnFocus" />
+
+@code {
+    private string _text = "";
+    private bool _invalid;
+    private Money _last;
+
+    [Parameter] public Money Value { get; set; }
+    [Parameter] public EventCallback<Money> ValueChanged { get; set; }
+    [Parameter] public EventCallback OnFocused { get; set; }
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>Refuse negative amounts (the default, since journal lines use debit and credit columns instead).</summary>
+    [Parameter] public bool AllowNegative { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Only reformat when the value was changed from outside, so a half-typed
+        // or invalid entry is not overwritten while the person is fixing it.
+        if (Value != _last || (_text.Length == 0 && !Value.IsZero))
+        {
+            _text = Value.IsZero ? "" : Value.ToString();
+            _invalid = false;
+            _last = Value;
+        }
+    }
+
+    private async Task OnChange(ChangeEventArgs e)
+    {
+        _text = e.Value?.ToString() ?? "";
+        if (Money.TryParse(_text, out var money) && (AllowNegative || !money.IsNegative))
+        {
+            _invalid = false;
+            _last = money;
+            _text = money.IsZero ? "" : money.ToString();
+            await ValueChanged.InvokeAsync(money);
+        }
+        else
+        {
+            _invalid = true;
+        }
+    }
+
+    private Task OnFocus() => OnFocused.InvokeAsync();
+}

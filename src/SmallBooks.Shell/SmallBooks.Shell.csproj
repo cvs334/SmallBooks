@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- The app's screens: start screen, layout, dashboard, chart of accounts,
+       journal, reports list and settings. Kept out of the MAUI project so the same
+       screens also run in a browser (SmallBooks.DevHost) and can be tested on any OS. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="$(AspNetCoreVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SmallBooks.Data\SmallBooks.Data.csproj" />
+    <ProjectReference Include="..\SmallBooks.Ui.Shared\SmallBooks.Ui.Shared.csproj" />
+  </ItemGroup>
+</Project>

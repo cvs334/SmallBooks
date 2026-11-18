@@ -1,0 +1,10 @@
+@* A coloured message box: Kind is info, good, warn or bad. *@
+@if (ChildContent is not null)
+{
+    <div class="note @Kind" role="@(Kind is "bad" or "warn" ? "alert" : "status")">@ChildContent</div>
+}
+
+@code {
+    [Parameter] public string Kind { get; set; } = "info";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

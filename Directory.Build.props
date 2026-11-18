@@ -1,0 +1,16 @@
+<Project>
+  <!-- Settings shared by every project in the solution. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Company>SmallBooks</Company>
+    <Product>SmallBooks</Product>
+
+    <!-- One place to bump package versions used by several projects. -->
+    <EfCoreVersion>10.0.15</EfCoreVersion>
+    <AspNetCoreVersion>10.0.15</AspNetCoreVersion>
+    <ExtensionsVersion>10.0.15</ExtensionsVersion>
+  </PropertyGroup>
+</Project>
