@@ -70,6 +70,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPostingService, PostingService>();
         services.AddSingleton<ILedgerQueries, LedgerQueries>();
         services.AddSingleton<IChartOfAccounts, ChartOfAccounts>();
+        services.AddSingleton<Samples.SampleCompany>();
         return services;
     }
 }

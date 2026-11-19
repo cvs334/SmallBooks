@@ -5,6 +5,7 @@
 @inject IPlatformServices Platform
 @inject ShellState Shell
 @inject NavigationManager Nav
+@inject SmallBooks.Data.Samples.SampleCompany Sample
 
 <div class="start">
     <div class="start-inner">
@@ -98,6 +99,20 @@
                 </div>
             </section>
         </div>
+
+        <section class="card" aria-labelledby="sample-h">
+            <div class="hd"><h3 id="sample-h">Try the sample company</h3></div>
+            <div class="bd">
+                <p class="small muted" style="margin:0">
+                    A made-up coating shop with opening balances and October to early November 2026 already entered.
+                    The <span class="mono">samples</span> folder in the repository has its bank download files and its October bank statement (PDF), for trying import and reconciliation.
+                    Saved as <span class="mono">@SamplePath</span>.
+                </p>
+                <div class="row">
+                    <button class="btn" @onclick="CreateSampleAsync" disabled="@_busy">Create the sample company</button>
+                </div>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -129,6 +144,14 @@
         var path = await Platform.PickCompanyFileAsync();
         if (path is not null) await OpenAsync(path);
     }
+
+    private string SamplePath => SmallBooks.Data.Samples.SampleCompany.PathIn(_folder);
+
+    private Task CreateSampleAsync() => RunAsync(async () =>
+    {
+        await Sample.CreateAsync(_folder);
+        Nav.NavigateTo("");
+    });
 
     private Task CreateAsync() => RunAsync(async () =>
     {
