@@ -19,6 +19,9 @@ use later.
 4. On the start screen, type the company name and press **Create company**. The books are
    saved as one file, by default `Documents\SmallBooks\<Company>.sbk`.
 
+To look around without real data, press **Create the sample company** on the start screen. Its bank
+download files and a PDF statement to reconcile are in [samples](samples/README.md).
+
 Run the tests from Test Explorer, or `dotnet test --project tests/SmallBooks.Tests`.
 
 To debug the screens in a web browser instead (handy for browser dev tools), start

@@ -1,0 +1,164 @@
+{
+  "_about": "Made-up books for trying SmallBooks. Everything here is fictional. The app builds the sample company from this file, and samples/tools/make_bank_files.py builds the bank download files and the PDF statement from the same file, so they always agree. Amounts are strings so nothing is rounded.",
+
+  "company": {
+    "name": "Riverbend Coatings (Sample)",
+    "fiscalYearStartMonth": 1
+  },
+
+  "bank": {
+    "name": "Sample Valley Bank",
+    "tagline": "Fictional bank for testing. Not a real statement.",
+    "address": ["PO Box 0000", "Nowhere, ZZ 00000"],
+    "routing": "999999999",
+    "accountNumber": "0000123456",
+    "accountType": "CHECKING",
+    "ledgerAccount": "1000",
+    "customer": ["RIVERBEND COATINGS (SAMPLE)", "100 EXAMPLE WAY", "ANYTOWN, ZZ 00000"],
+    "statement": { "from": "2026-10-01", "to": "2026-10-31" },
+    "download": { "from": "2026-10-01", "to": "2026-11-05" }
+  },
+
+  "extraAccounts": [
+    { "number": "6850", "name": "Interest Expense", "subtype": "OtherExpense" }
+  ],
+
+  "opening": {
+    "date": "2026-09-30",
+    "memo": "Opening balances (books start October 1, 2026; September was reconciled)",
+    "lines": [
+      { "a": "1000", "dr": "18452.36" },
+      { "a": "1010", "dr": "25000.00" },
+      { "a": "1050", "dr": "200.00" },
+      { "a": "1500", "dr": "42500.00" },
+      { "a": "1550", "cr": "8500.00" },
+      { "a": "2100", "cr": "1236.48" },
+      { "a": "2500", "cr": "15800.00" },
+      { "a": "3200", "cr": "60615.88" }
+    ]
+  },
+
+  "entries": [
+    { "date": "2026-10-01", "memo": "Check 1041, Ridgeline Properties, October shop rent",
+      "lines": [ { "a": "6400", "dr": "2400.00" }, { "a": "1000", "cr": "2400.00" } ],
+      "bank": { "posted": "2026-10-05", "type": "CHECK", "check": "1041", "payee": "CHECK 1041" } },
+
+    { "date": "2026-10-02", "memo": "Deposit, Harbor Marine Works, boat trailer frames",
+      "lines": [ { "a": "1000", "dr": "1850.00" }, { "a": "4000", "cr": "1850.00" } ],
+      "bank": { "posted": "2026-10-02", "type": "DEP", "payee": "BRANCH DEPOSIT" } },
+
+    { "date": "2026-10-03", "memo": "Debit card, Northside Industrial Supply, powder and masking tape",
+      "lines": [ { "a": "5000", "dr": "612.45" }, { "a": "1000", "cr": "612.45" } ],
+      "bank": { "posted": "2026-10-06", "type": "POS", "payee": "NORTHSIDE INDUSTRIAL SUP ANYTOWN ZZ" } },
+
+    { "date": "2026-10-05", "memo": "Credit card, Northside Industrial Supply, gloss black powder",
+      "lines": [ { "a": "5000", "dr": "389.20" }, { "a": "2100", "cr": "389.20" } ] },
+
+    { "date": "2026-10-06", "memo": "Autopay, Valley Electric Co-op, September power",
+      "lines": [ { "a": "6600", "dr": "318.72" }, { "a": "1000", "cr": "318.72" } ],
+      "bank": { "posted": "2026-10-06", "type": "DEBIT", "payee": "VALLEY ELECTRIC COOP AUTOPAY" } },
+
+    { "date": "2026-10-08", "memo": "Card sales settlement, week ending October 7",
+      "lines": [ { "a": "1000", "dr": "2214.60" }, { "a": "4000", "cr": "2214.60" } ],
+      "bank": { "posted": "2026-10-09", "type": "CREDIT", "payee": "SAMPLEPAY SETTLEMENT" } },
+
+    { "date": "2026-10-09", "memo": "Check 1042, Brightline Insurance, liability policy quarterly premium",
+      "lines": [ { "a": "6200", "dr": "945.00" }, { "a": "1000", "cr": "945.00" } ],
+      "bank": { "posted": "2026-10-14", "type": "CHECK", "check": "1042", "payee": "CHECK 1042" } },
+
+    { "date": "2026-10-09", "memo": "Transfer to savings, tax reserve",
+      "lines": [ { "a": "1010", "dr": "2000.00" }, { "a": "1000", "cr": "2000.00" } ],
+      "bank": { "posted": "2026-10-09", "type": "XFER", "payee": "ONLINE TRANSFER TO SAVINGS XXXX7788" } },
+
+    { "date": "2026-10-12", "memo": "Petty cash, coffee and donuts for customer pickup day",
+      "lines": [ { "a": "6900", "dr": "18.50" }, { "a": "1050", "cr": "18.50" } ] },
+
+    { "date": "2026-10-13", "memo": "Debit card, Hilltop Fuel, shop truck",
+      "lines": [ { "a": "6700", "dr": "64.18" }, { "a": "1000", "cr": "64.18" } ],
+      "bank": { "posted": "2026-10-14", "type": "POS", "payee": "HILLTOP FUEL #22 ANYTOWN ZZ" } },
+
+    { "date": "2026-10-15", "memo": "Deposit, Kessler Fabrication, railings and gates",
+      "lines": [ { "a": "1000", "dr": "3420.00" }, { "a": "4000", "cr": "3420.00" } ],
+      "bank": { "posted": "2026-10-15", "type": "DEP", "payee": "MOBILE DEPOSIT" } },
+
+    { "date": "2026-10-16", "memo": "Autopay, Mill Creek Equipment Finance, oven loan",
+      "lines": [ { "a": "2500", "dr": "560.00", "d": "Principal" }, { "a": "6850", "dr": "125.00", "d": "Interest" }, { "a": "1000", "cr": "685.00" } ],
+      "bank": { "posted": "2026-10-16", "type": "DEBIT", "payee": "MILL CREEK EQUIP FIN LOAN PMT" } },
+
+    { "date": "2026-10-17", "memo": "Check 1043, Marsh and Pell CPAs, quarterly bookkeeping review",
+      "lines": [ { "a": "6800", "dr": "375.00" }, { "a": "1000", "cr": "375.00" } ],
+      "bank": { "posted": "2026-10-22", "type": "CHECK", "check": "1043", "payee": "CHECK 1043" } },
+
+    { "date": "2026-10-19", "memo": "Credit card, Lunch with Kessler Fabrication about the stair rail job",
+      "lines": [ { "a": "6900", "dr": "42.15" }, { "a": "2100", "cr": "42.15" } ] },
+
+    { "date": "2026-10-20", "memo": "Debit card, Paper Trail Office, printer paper and labels",
+      "lines": [ { "a": "6300", "dr": "47.83" }, { "a": "1000", "cr": "47.83" } ],
+      "bank": { "posted": "2026-10-21", "type": "POS", "payee": "PAPER TRAIL OFFICE ANYTOWN ZZ" } },
+
+    { "date": "2026-10-21", "memo": "Autopay, Riverbend Natural Gas, oven gas",
+      "lines": [ { "a": "6600", "dr": "245.00" }, { "a": "1000", "cr": "245.00" } ],
+      "bank": { "posted": "2026-10-21", "type": "DEBIT", "payee": "RIVERBEND NATURAL GAS AUTOPAY", "amount": "-254.00",
+                "note": "Typo on purpose: the books say 245.00 but the bank took 254.00, a 9.00 difference." } },
+
+    { "date": "2026-10-22", "memo": "Deposit, Harbor Marine Works, outboard brackets",
+      "lines": [ { "a": "1000", "dr": "1275.00" }, { "a": "4000", "cr": "1275.00" } ],
+      "bank": { "posted": "2026-10-23", "type": "DEP", "payee": "BRANCH DEPOSIT" } },
+
+    { "date": "2026-10-23", "memo": "Payment to credit card, September statement balance",
+      "lines": [ { "a": "2100", "dr": "1236.48" }, { "a": "1000", "cr": "1236.48" } ],
+      "bank": { "posted": "2026-10-23", "type": "PAYMENT", "payee": "SAMPLE CARD SERVICES PAYMENT" } },
+
+    { "date": "2026-10-24", "memo": "Check 1045, Sunrise Sign Shop, yard sign and truck decals",
+      "lines": [ { "a": "6000", "dr": "420.00" }, { "a": "1000", "cr": "420.00" } ],
+      "bank": { "posted": "2026-10-29", "type": "CHECK", "check": "1045", "payee": "CHECK 1045" } },
+
+    { "date": "2026-10-26", "memo": "Credit card, Paper Trail Office, invoice forms",
+      "lines": [ { "a": "6300", "dr": "64.99" }, { "a": "2100", "cr": "64.99" } ] },
+
+    { "date": "2026-10-27", "memo": "Card sales settlement, weeks ending October 21 and 26",
+      "lines": [ { "a": "1000", "dr": "1968.25" }, { "a": "4000", "cr": "1968.25" } ],
+      "bank": { "posted": "2026-10-28", "type": "CREDIT", "payee": "SAMPLEPAY SETTLEMENT" } },
+
+    { "date": "2026-10-28", "memo": "Check 1046, Tri-County Compressor Service, compressor repair",
+      "lines": [ { "a": "6500", "dr": "560.00" }, { "a": "1000", "cr": "560.00" } ],
+      "bank": { "posted": "2026-11-04", "type": "CHECK", "check": "1046", "payee": "CHECK 1046",
+                "note": "Outstanding check: written in October, cashed in November." } },
+
+    { "date": "2026-10-29", "memo": "Owner's draw",
+      "lines": [ { "a": "3100", "dr": "1500.00" }, { "a": "1000", "cr": "1500.00" } ],
+      "bank": { "posted": "2026-10-29", "type": "XFER", "payee": "ONLINE TRANSFER TO XXXX4410" } },
+
+    { "date": "2026-10-31", "memo": "Deposit, Kessler Fabrication, stair rail job",
+      "lines": [ { "a": "1000", "dr": "2640.00" }, { "a": "4000", "cr": "2640.00" } ],
+      "bank": { "posted": "2026-11-02", "type": "DEP", "payee": "NIGHT DEPOSIT",
+                "note": "Deposit in transit: dropped in the night box October 31, credited November 2." } },
+
+    { "date": "2026-10-31", "memo": "Savings interest, October (from the savings statement)",
+      "lines": [ { "a": "1010", "dr": "6.25" }, { "a": "4900", "cr": "6.25" } ] },
+
+    { "date": "2026-10-31", "memo": "Depreciation, October",
+      "lines": [ { "a": "6950", "dr": "350.00", "d": "Depreciation (no account for it yet)" }, { "a": "1550", "cr": "350.00" } ] },
+
+    { "date": "2026-11-02", "memo": "Check 1047, Ridgeline Properties, November shop rent",
+      "lines": [ { "a": "6400", "dr": "2400.00" }, { "a": "1000", "cr": "2400.00" } ],
+      "bank": { "posted": "2026-11-03", "type": "CHECK", "check": "1047", "payee": "CHECK 1047" } },
+
+    { "date": "2026-11-03", "memo": "Deposit, Harbor Marine Works, dock cleats",
+      "lines": [ { "a": "1000", "dr": "980.00" }, { "a": "4000", "cr": "980.00" } ],
+      "bank": { "posted": "2026-11-03", "type": "DEP", "payee": "MOBILE DEPOSIT" } },
+
+    { "date": "2026-11-04", "memo": "Debit card, Northside Industrial Supply, powder",
+      "lines": [ { "a": "5000", "dr": "455.10" }, { "a": "1000", "cr": "455.10" } ],
+      "bank": { "posted": "2026-11-05", "type": "POS", "payee": "NORTHSIDE INDUSTRIAL SUP ANYTOWN ZZ" } }
+  ],
+
+  "bankOnly": [
+    { "posted": "2026-10-19", "type": "POS", "payee": "QUICK LUBE EXPRESS ANYTOWN ZZ", "amount": "-89.95",
+      "suggest": "6700", "note": "Oil change on the shop truck; the receipt never made it into the books." },
+    { "posted": "2026-10-31", "type": "FEE", "payee": "MONTHLY SERVICE FEE", "amount": "-12.00",
+      "suggest": "6100", "note": "Bank fee, only seen on the statement." },
+    { "posted": "2026-10-31", "type": "INT", "payee": "INTEREST PAID", "amount": "0.84",
+      "suggest": "4900", "note": "Checking interest, only seen on the statement." }
+  ]
+}

@@ -15,6 +15,10 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="$(ExtensionsVersion)" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The made-up sample company; samples/tools/make_bank_files.py reads the same file. -->
+    <EmbeddedResource Include="Samples\sample-books.json" LogicalName="SmallBooks.Data.Samples.sample-books.json" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="SmallBooks.Tests" />
   </ItemGroup>
 </Project>
